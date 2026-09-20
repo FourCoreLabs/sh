@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -293,9 +294,14 @@ func (r *Runner) builtin(ctx context.Context, pos syntax.Pos, name string, args 
 		}
 		pwd := r.envGet("PWD")
 		if evalSymlinks {
-			var err error
-			pwd, err = filepath.EvalSymlinks(pwd)
-			if err != nil {
+			if r.vfsPaths {
+				// A virtual filesystem has no symbolic links to resolve, and
+				// EvalSymlinks would read the *host* disk for a shell whose
+				// whole point is not to. Report the logical path.
+				pwd = absPath("", pwd, true)
+			} else if resolved, err := filepath.EvalSymlinks(pwd); err == nil {
+				pwd = resolved
+			} else {
 				exit.fatal(err) // perhaps overly dramatic?
 				return exit
 			}
@@ -1094,9 +1100,18 @@ func (r *Runner) changeDir(ctx context.Context, cmd, path string) uint8 {
 	return 0
 }
 
-func absPath(dir, path string) string {
+// absPath resolves a shell path against dir, using POSIX semantics when the
+// interpreter runs over a virtual filesystem (see [VFSPaths]); the host
+// filesystem's rules apply otherwise, so Windows keeps its separator.
+func absPath(dir, path string, vfsPaths bool) string {
 	if path == "" {
 		return ""
+	}
+	if vfsPaths {
+		if !pathpkg.IsAbs(path) {
+			path = pathpkg.Join(dir, path)
+		}
+		return pathpkg.Clean(path) // TODO: this clean is likely unnecessary
 	}
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(dir, path)
@@ -1105,7 +1120,7 @@ func absPath(dir, path string) string {
 }
 
 func (r *Runner) absPath(path string) string {
-	return absPath(r.Dir, path)
+	return absPath(r.Dir, path, r.vfsPaths)
 }
 
 // flagParser is used to parse builtin flags.

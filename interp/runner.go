@@ -894,10 +894,72 @@ func (r *Runner) stmts(ctx context.Context, stmts []*syntax.Stmt) {
 	}
 }
 
+// hdocQuoted reports whether a heredoc delimiter suppresses expansion. Quoting
+// any part of it — 'EOF', "EOF", \EOF — makes the body literal; this is the
+// same test the parser applies to build the stop word.
+func hdocQuoted(w *syntax.Word) bool {
+	if w == nil {
+		return false
+	}
+	for _, p := range w.Parts {
+		switch x := p.(type) {
+		case *syntax.SglQuoted, *syntax.DblQuoted:
+			return true
+		case *syntax.Lit:
+			if strings.ContainsRune(x.Value, '\\') {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// rawHdocBody returns a quoted heredoc body verbatim. A dash heredoc (<<-)
+// strips the leading tabs of every line first, matching the Lit-based path
+// below.
+func rawHdocBody(word *syntax.Word, stripTabs bool) string {
+	if word == nil {
+		return ""
+	}
+	var sb strings.Builder
+	for _, p := range word.Parts {
+		lit, ok := p.(*syntax.Lit)
+		if !ok {
+			continue
+		}
+		if !stripTabs {
+			sb.WriteString(lit.Value)
+			continue
+		}
+		first := true
+		for part := range strings.SplitSeq(lit.Value, "\n") {
+			if !first {
+				sb.WriteByte('\n')
+			}
+			first = false
+			sb.WriteString(strings.TrimLeft(part, "\t"))
+		}
+	}
+	return sb.String()
+}
+
 func (r *Runner) hdocReader(rd *syntax.Redirect) (*os.File, error) {
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return nil, err
+	}
+	// A quoted delimiter (<<'EOF', <<"EOF", <<\EOF) makes the body literal:
+	// no expansion *and* no backslash processing. The body word keeps the
+	// parts the parser gave it, which are unquoted, so expand.Document would
+	// still consume one backslash from every pair and turn authored JSON,
+	// Sigma regex and Windows paths into something else. Write the raw text.
+	if hdocQuoted(rd.Word) {
+		body := rawHdocBody(rd.Hdoc, rd.Op == syntax.DashHdoc)
+		go func() {
+			pw.WriteString(body)
+			pw.Close()
+		}()
+		return pr, nil
 	}
 	// We write to the pipe in a new goroutine,
 	// as pipe writes may block once the buffer gets full.
@@ -1134,11 +1196,11 @@ func (r *Runner) open(ctx context.Context, path string, flags int, mode os.FileM
 }
 
 func (r *Runner) stat(ctx context.Context, name string) (fs.FileInfo, error) {
-	path := absPath(r.Dir, name)
+	path := absPath(r.Dir, name, r.vfsPaths)
 	return r.statHandler(ctx, path, true)
 }
 
 func (r *Runner) lstat(ctx context.Context, name string) (fs.FileInfo, error) {
-	path := absPath(r.Dir, name)
+	path := absPath(r.Dir, name, r.vfsPaths)
 	return r.statHandler(ctx, path, false)
 }
