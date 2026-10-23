@@ -13,6 +13,7 @@ import (
 	"maps"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -65,6 +66,16 @@ type Config struct {
 	// If nil, and [ReadDir] is nil as well, globbing is disabled.
 	// Use [os.ReadDir] to use the filesystem directly.
 	ReadDir2 func(string) ([]fs.DirEntry, error)
+
+	// VFSPaths makes globbing treat paths as POSIX paths ("/" separator,
+	// path.IsAbs, path.Join) regardless of the host OS, for a ReadDir2 that
+	// serves a virtual filesystem. Without it, on Windows "/work" is not
+	// absolute and is joined onto the base with "\", so "*.txt" under a
+	// virtual "/work" reads "/work/\work" and matches nothing.
+	// interp.VFSPaths sets it.
+	//
+	// FourCoreLabs fork patch; see FORK.md.
+	VFSPaths bool
 
 	// GlobStar corresponds to the shell option which allows globbing with "**".
 	GlobStar bool
@@ -991,33 +1002,60 @@ var (
 	rxGlobStarDotGlob = regexp.MustCompile(`^[^/]*$`)
 )
 
+// pathSep, pathIsAbs and pathJoin are the glob's path rules: the host's, or
+// POSIX ones when [Config.VFSPaths] is set.
+func (cfg *Config) pathSep() string {
+	if cfg.VFSPaths {
+		return "/"
+	}
+	return string(filepath.Separator)
+}
+
+func (cfg *Config) pathIsAbs(p string) bool {
+	if cfg.VFSPaths {
+		return path.IsAbs(p)
+	}
+	return filepath.IsAbs(p)
+}
+
+func (cfg *Config) pathJoin(elem1, elem2 string) string {
+	if cfg.VFSPaths {
+		return path.Join(elem1, elem2)
+	}
+	return filepath.Join(elem1, elem2)
+}
+
 // pathJoin2 is a simpler version of [filepath.Join] without cleaning the result,
 // since that's needed for globbing.
-func pathJoin2(elem1, elem2 string) string {
+func (cfg *Config) pathJoin2(elem1, elem2 string) string {
 	if elem1 == "" {
 		return elem2
 	}
-	if strings.HasSuffix(elem1, string(filepath.Separator)) {
+	sep := cfg.pathSep()
+	if strings.HasSuffix(elem1, sep) {
 		return elem1 + elem2
 	}
-	return elem1 + string(filepath.Separator) + elem2
+	return elem1 + sep + elem2
 }
 
 // pathSplit splits a file path into its elements, retaining empty ones. Before
 // splitting, slashes are replaced with [filepath.Separator], so that splitting
-// Unix paths on Windows works as well.
-func pathSplit(path string) []string {
-	path = filepath.FromSlash(path)
-	return strings.Split(path, string(filepath.Separator))
+// Unix paths on Windows works as well. Virtual paths split on "/" only.
+func (cfg *Config) pathSplit(p string) []string {
+	if cfg.VFSPaths {
+		return strings.Split(p, "/")
+	}
+	p = filepath.FromSlash(p)
+	return strings.Split(p, string(filepath.Separator))
 }
 
 func (cfg *Config) glob(base, pat string) ([]string, error) {
-	parts := pathSplit(pat)
+	parts := cfg.pathSplit(pat)
 	matches := []string{""}
-	if filepath.IsAbs(pat) {
+	if cfg.pathIsAbs(pat) {
 		if parts[0] == "" {
-			// unix-like
-			matches[0] = string(filepath.Separator)
+			// unix-like (always the case for virtual paths)
+			matches[0] = cfg.pathSep()
 		} else {
 			// windows (for some reason it won't work without the
 			// trailing separator)
@@ -1042,17 +1080,17 @@ func (cfg *Config) glob(base, pat string) ([]string, error) {
 		switch {
 		case part == "", part == ".", part == "..":
 			for i, dir := range matches {
-				matches[i] = pathJoin2(dir, part)
+				matches[i] = cfg.pathJoin2(dir, part)
 			}
 			continue
 		case !pattern.HasMeta(part, 0):
 			var newMatches []string
 			for _, dir := range matches {
 				match := dir
-				if !filepath.IsAbs(match) {
-					match = filepath.Join(base, match)
+				if !cfg.pathIsAbs(match) {
+					match = cfg.pathJoin(base, match)
 				}
-				match = pathJoin2(match, part)
+				match = cfg.pathJoin2(match, part)
 				// We can't use [Config.ReadDir2] on the parent and match the directory
 				// entry by name, because short paths on Windows break that.
 				// Our only option is to [Config.ReadDir2] on the directory entry itself,
@@ -1071,7 +1109,7 @@ func (cfg *Config) glob(base, pat string) ([]string, error) {
 						continue // exists but not a directory
 					}
 				}
-				newMatches = append(newMatches, pathJoin2(dir, part))
+				newMatches = append(newMatches, cfg.pathJoin2(dir, part))
 			}
 			matches = newMatches
 			continue
@@ -1084,7 +1122,7 @@ func (cfg *Config) glob(base, pat string) ([]string, error) {
 			for _, match := range slices.Backward(matches) {
 				// "a/**" should match "a/ a/b a/b/cfg ...";
 				// note how the zero-match case there has a trailing separator.
-				stack = append(stack, pathJoin2(match, ""))
+				stack = append(stack, cfg.pathJoin2(match, ""))
 			}
 			matches = matches[:0]
 			var newMatches []string // to reuse its capacity
@@ -1141,8 +1179,8 @@ func (cfg *Config) glob(base, pat string) ([]string, error) {
 
 func (cfg *Config) globDir(base, dir string, matcher func(string) bool, wantDir bool, matches []string) ([]string, error) {
 	fullDir := dir
-	if !filepath.IsAbs(dir) {
-		fullDir = filepath.Join(base, dir)
+	if !cfg.pathIsAbs(dir) {
+		fullDir = cfg.pathJoin(base, dir)
 	}
 	infos, err := cfg.ReadDir2(fullDir)
 	if err != nil {
@@ -1159,7 +1197,7 @@ func (cfg *Config) globDir(base, dir string, matcher func(string) bool, wantDir 
 			// does not follow symlinks for each of the directory entries.
 			// ReadDir is somewhat wasteful here, as we only want its error result,
 			// but we could try to reuse its result as per the TODO in [Config.glob].
-			if _, err := cfg.ReadDir2(filepath.Join(fullDir, info.Name())); err != nil {
+			if _, err := cfg.ReadDir2(cfg.pathJoin(fullDir, info.Name())); err != nil {
 				continue
 			}
 		} else if !mode.IsDir() {
@@ -1167,7 +1205,7 @@ func (cfg *Config) globDir(base, dir string, matcher func(string) bool, wantDir 
 			continue
 		}
 		if matcher(name) {
-			matches = append(matches, pathJoin2(dir, name))
+			matches = append(matches, cfg.pathJoin2(dir, name))
 		}
 	}
 	return matches, nil

@@ -190,6 +190,7 @@ func (r *Runner) updateExpandOpts() {
 	r.ecfg.NullGlob = r.opts[optNullGlob]
 	r.ecfg.NoUnset = r.opts[optNoUnset]
 	r.ecfg.ExtGlob = r.opts[optExtGlob]
+	r.ecfg.VFSPaths = r.vfsPaths // FourCoreLabs: glob with POSIX paths over a VFS
 }
 
 func (r *Runner) expandErr(err error) {

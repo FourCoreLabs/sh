@@ -5,7 +5,7 @@ A fork of [mvdan/sh](https://github.com/mvdan/sh) (BSD-3-Clause, see
 [FourCoreLabs/go-bash](https://github.com/FourCoreLabs/go-bash).
 
 ```
-go get github.com/FourCoreLabs/sh@v1.0.0
+go get github.com/FourCoreLabs/sh@latest
 ```
 
 The module path is `github.com/FourCoreLabs/sh`, so consumers require it
@@ -23,6 +23,14 @@ Upstream **v3.14.1** (`a3f0c75d21d9`), imported without history.
 | Declare module github.com/FourCoreLabs/sh | Module path and import rewrite. `moreinterp` (a separate upstream module) is left out |
 | interp: add VFSPaths | POSIX path resolution for interpreters over a virtual filesystem |
 | interp: contain panics in goroutine stages | `recoverStage`: a panic in a pipeline stage, background job or process substitution fails that stage (status 2) instead of the process |
+| expand: glob with POSIX paths under VFSPaths | `expand.Config.VFSPaths`, set by `interp.VFSPaths()`, makes globbing join and split paths with `/` so `*.txt` matches over a virtual filesystem on Windows (v1.1.0) |
+
+## Releases
+
+| Version | Contents |
+|---|---|
+| v1.1.0 | Globbing honours VFSPaths |
+| v1.0.0 | mvdan/sh v3.14.1 + VFSPaths + recoverStage |
 
 ## History of the fork
 
