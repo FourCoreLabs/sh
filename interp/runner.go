@@ -119,6 +119,7 @@ func (r *Runner) fillExpandConfig(ctx context.Context) {
 					*bg.exit = r2.exit
 					close(bg.done)
 				}()
+				defer recoverStage(r2)
 				switch ps.Op {
 				case syntax.CmdIn:
 					f, err := os.OpenFile(path, os.O_WRONLY, 0)
@@ -306,6 +307,30 @@ func (r *Runner) stop(ctx context.Context) bool {
 	return false
 }
 
+// recoverStage converts a panic that escaped a shell stage into a shell-level
+// failure instead of a process-wide crash.
+//
+// The interpreter executes third-party code - builtins, view handlers,
+// expansions - inside the host process, and several kinds of node run in their
+// own goroutine: a pipeline's left stage, a background job, a process
+// substitution. A panic in one of them cannot be caught by the caller that
+// started it, so it is caught here: the stage reports a diagnostic on its own
+// stderr and finishes with exit status 2, and the pipe it owns is still closed
+// by the deferred cleanup that follows, so a downstream stage sees EOF instead
+// of hanging forever.
+//
+// FourCoreLabs fork patch; see FORK.md.
+func recoverStage(r *Runner) {
+	rec := recover()
+	if rec == nil {
+		return
+	}
+	if r.stderr != nil {
+		fmt.Fprintf(r.stderr, "shell: internal error: %v\n", rec)
+	}
+	r.exit = exitStatus{code: 2}
+}
+
 func (r *Runner) stmt(ctx context.Context, st *syntax.Stmt) {
 	if r.stop(ctx) {
 		return
@@ -322,10 +347,13 @@ func (r *Runner) stmt(ctx context.Context, st *syntax.Stmt) {
 		}
 		r.bgProcs = append(r.bgProcs, bg)
 		go func() {
+			defer func() {
+				*bg.exit = r2.exit
+				close(bg.done)
+			}()
+			defer recoverStage(r2)
 			r2.Run(ctx, &st2)
 			r2.exit.exiting = false // subshells don't exit the parent shell
-			*bg.exit = r2.exit
-			close(bg.done)
 		}()
 	} else {
 		r.stmtSync(ctx, st)
@@ -514,9 +542,10 @@ func (r *Runner) cmd(ctx context.Context, cm syntax.Command) {
 			r.stdin = pr
 			var wg sync.WaitGroup
 			wg.Go(func() {
+				defer pw.Close()
+				defer recoverStage(r2)
 				r2.stmt(ctx, cm.X)
 				r2.exit.exiting = false // subshells don't exit the parent shell
-				pw.Close()
 			})
 			r.stmt(ctx, cm.Y)
 			pr.Close()
