@@ -1,3 +1,5 @@
+> **Fork:** this is [FourCoreLabs/sh](FORK.md), module `github.com/FourCoreLabs/sh`. The text below is upstream's README; package paths in it read `mvdan.cc/sh/v3` upstream and `github.com/FourCoreLabs/sh` here.
+
 # sh
 
 [![Go Reference](https://pkg.go.dev/badge/mvdan.cc/sh/v3.svg)](https://pkg.go.dev/mvdan.cc/sh/v3)
