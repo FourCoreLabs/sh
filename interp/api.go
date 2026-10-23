@@ -57,6 +57,10 @@ type Runner struct {
 	// absolute path. It can only be set via [Dir].
 	Dir string
 
+	// vfsPaths resolves shell paths as POSIX paths even on a host that is not,
+	// for an interpreter embedded over a virtual filesystem. See [VFSPaths].
+	vfsPaths bool
+
 	// tempDir is either $TMPDIR from [Runner.Env], or [os.TempDir].
 	tempDir string
 
@@ -368,6 +372,23 @@ func Dir(path string) RunnerOption {
 func Interactive(enabled bool) RunnerOption {
 	return func(r *Runner) error {
 		r.opts[optExpandAliases] = enabled
+		return nil
+	}
+}
+
+// VFSPaths make the interpreter resolve shell paths with POSIX semantics —
+// path.IsAbs, path.Join, path.Clean — instead of the host filesystem's.
+//
+// An interpreter embedded over a virtual filesystem must do this: on Windows
+// filepath.IsAbs("/work") is false, so an absolute virtual path is otherwise
+// joined onto the current directory and cd, test -r/-w/-x, source and the
+// stat handlers cannot address it, while commands that resolve paths
+// POSIX-ly address it fine. Sessions running against the host filesystem keep
+// the default behavior, where Windows paths are joined with the platform
+// separator.
+func VFSPaths() RunnerOption {
+	return func(r *Runner) error {
+		r.vfsPaths = true
 		return nil
 	}
 }
@@ -886,6 +907,7 @@ func (r *Runner) Reset() {
 		openHandler:    r.openHandler,
 		readDirHandler: r.readDirHandler,
 		statHandler:    r.statHandler,
+		vfsPaths:       r.vfsPaths,
 		accessHandler:  r.accessHandler,
 
 		// These can be set by functions like [Dir] or [Params], but
@@ -1078,6 +1100,7 @@ func (r *Runner) subshell(background bool) *Runner {
 		openHandler:    r.openHandler,
 		readDirHandler: r.readDirHandler,
 		statHandler:    r.statHandler,
+		vfsPaths:       r.vfsPaths,
 		accessHandler:  r.accessHandler,
 		stdin:          r.stdin,
 		stdout:         r.stdout,

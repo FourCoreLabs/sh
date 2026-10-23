@@ -1221,16 +1221,16 @@ func (r *Runner) open(ctx context.Context, path string, flags int, mode os.FileM
 }
 
 func (r *Runner) stat(ctx context.Context, name string) (fs.FileInfo, error) {
-	path := absPath(r.Dir, name)
+	path := absPath(r.Dir, name, r.vfsPaths)
 	return r.statHandler(r.handlerCtx(ctx, handlerKindStat, todoPos), path, true)
 }
 
 func (r *Runner) lstat(ctx context.Context, name string) (fs.FileInfo, error) {
-	path := absPath(r.Dir, name)
+	path := absPath(r.Dir, name, r.vfsPaths)
 	return r.statHandler(r.handlerCtx(ctx, handlerKindStat, todoPos), path, false)
 }
 
 func (r *Runner) access(ctx context.Context, name string, mode AccessMode) error {
-	path := absPath(r.Dir, name)
+	path := absPath(r.Dir, name, r.vfsPaths)
 	return r.accessHandler(r.handlerCtx(ctx, handlerKindAccess, todoPos), path, mode)
 }
