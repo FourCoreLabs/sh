@@ -22,8 +22,8 @@ import (
 	"testing/fstest"
 	"time"
 
-	"mvdan.cc/sh/v3/interp"
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/interp"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 func blocklistOneExec(name string) func(interp.ExecHandlerFunc) interp.ExecHandlerFunc {

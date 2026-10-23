@@ -1,4 +1,4 @@
-module mvdan.cc/sh/v3
+module github.com/FourCoreLabs/sh
 
 go 1.26.0
 

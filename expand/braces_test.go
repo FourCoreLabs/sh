@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"testing"
 
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 func lit(s string) *syntax.Lit                { return &syntax.Lit{Value: s} }

@@ -163,7 +163,7 @@ func (r *Runner) runHelp(args []string) exitStatus {
 patterns:
 
 	if len(rest) == 0 {
-		r.out("A shell built on mvdan.cc/sh/v3. These shell commands are defined internally.\n")
+		r.out("A shell built on github.com/FourCoreLabs/sh. These shell commands are defined internally.\n")
 		r.out("Type `help' to see this list.\n")
 		r.out("Type `help name' to find out more about the function `name'.\n\n")
 		r.out("A star (*) next to a name means that the command is not implemented.\n\n")

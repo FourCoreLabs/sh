@@ -22,9 +22,9 @@ import (
 	"golang.org/x/term"
 	"mvdan.cc/editorconfig"
 
-	"mvdan.cc/sh/v3/fileutil"
-	"mvdan.cc/sh/v3/syntax"
-	"mvdan.cc/sh/v3/syntax/typedjson"
+	"github.com/FourCoreLabs/sh/fileutil"
+	"github.com/FourCoreLabs/sh/syntax"
+	"github.com/FourCoreLabs/sh/syntax/typedjson"
 )
 
 type boolStringValue string

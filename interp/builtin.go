@@ -18,8 +18,8 @@ import (
 
 	"golang.org/x/term"
 
-	"mvdan.cc/sh/v3/expand"
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/expand"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 // TODO: given the categories below, perhaps this should be more like:

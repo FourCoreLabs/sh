@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/FourCoreLabs/sh/expand"
+	"github.com/FourCoreLabs/sh/internal"
+	"github.com/FourCoreLabs/sh/interp"
+	"github.com/FourCoreLabs/sh/syntax"
 	"github.com/go-quicktest/qt"
-	"mvdan.cc/sh/v3/expand"
-	"mvdan.cc/sh/v3/internal"
-	"mvdan.cc/sh/v3/interp"
-	"mvdan.cc/sh/v3/syntax"
 )
 
 // runnerRunTimeout is the context timeout used by any tests calling [Runner.Run].

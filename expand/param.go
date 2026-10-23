@@ -13,9 +13,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"mvdan.cc/sh/v3/internal"
-	"mvdan.cc/sh/v3/pattern"
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/internal"
+	"github.com/FourCoreLabs/sh/pattern"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 func nodeLit(node syntax.Node) string {

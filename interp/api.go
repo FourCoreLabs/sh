@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"time"
 
-	"mvdan.cc/sh/v3/expand"
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/expand"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 // A Runner interprets shell programs. It can be reused, but it is not safe for

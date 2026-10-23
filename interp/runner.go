@@ -23,10 +23,10 @@ import (
 	"sync"
 	"time"
 
-	"mvdan.cc/sh/v3/expand"
-	"mvdan.cc/sh/v3/internal"
-	"mvdan.cc/sh/v3/pattern"
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/expand"
+	"github.com/FourCoreLabs/sh/internal"
+	"github.com/FourCoreLabs/sh/pattern"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 const (

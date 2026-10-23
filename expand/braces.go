@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 // Braces performs brace expansion on a word, given that it contains any

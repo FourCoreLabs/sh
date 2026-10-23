@@ -22,7 +22,7 @@ import (
 	"math"
 	"reflect"
 
-	"mvdan.cc/sh/v3/syntax"
+	"github.com/FourCoreLabs/sh/syntax"
 )
 
 // Encode is a shortcut for [EncodeOptions.Encode] with the default options.

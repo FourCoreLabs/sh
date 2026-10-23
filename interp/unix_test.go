@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/FourCoreLabs/sh/interp"
 	"github.com/creack/pty"
-	"mvdan.cc/sh/v3/interp"
 )
 
 func TestRunnerTerminalStdIO(t *testing.T) {
